@@ -82,10 +82,58 @@ def silhouette_samples(
     """
     # assert: Ověřte, že x je 2D matice, labels je 1D pole stejné délky
     # a obsahuje alespoň 2 různé shluky
-    raise NotImplementedError(
-        "Úkol: implementujte silhouette_samples() — vypočítejte silhouetovou "
-        "hodnotu s(i) = (b(i) - a(i)) / max(a(i), b(i)) pro každý bod."
-    )
+    assert x.ndim == 2
+    assert labels.ndim == 1
+    assert x.shape[0] == labels.shape[0]
+
+    unique_clusters = np.unique(labels)
+    assert len(unique_clusters) >= 2
+
+    n_samples = x.shape[0]
+    sil_samples = np.zeros(n_samples, dtype=np.float64)
+
+    # Předpočítání vzdáleností mezi všemi dvojicemi bodů
+    # pro úsporu opakovaných volání distance.calculate
+    dist_matrix = np.zeros((n_samples, n_samples), dtype=np.float64)
+    for i in range(n_samples):
+        for j in range(i + 1, n_samples):
+            d = distance.calculate(x[i], x[j])
+            dist_matrix[i, j] = d
+            dist_matrix[j, i] = d
+
+    for i in range(n_samples):
+        c_i = labels[i]
+
+        # 1. Výpočet a(i): průměrná vzdálenost k ostatním bodům ve stejném shluku
+        same_cluster_indices = np.where((labels == c_i) & (np.arange(n_samples) != i))[0]
+
+        # Speciální případ: pokud shluk obsahuje pouze jeden bod, s(i) = 0
+        if len(same_cluster_indices) == 0:
+            sil_samples[i] = 0.0
+            continue
+
+        a_i = np.mean(dist_matrix[i, same_cluster_indices])
+
+        # 2. Výpočet b(i): průměrná vzdálenost k bodům v nejbližším jiném shluku
+        b_i = np.inf
+        for c in unique_clusters:
+            if c == c_i:
+                continue
+
+            other_cluster_indices = np.where(labels == c)[0]
+            if len(other_cluster_indices) > 0:
+                mean_dist_to_c = np.mean(dist_matrix[i, other_cluster_indices])
+                if mean_dist_to_c < b_i:
+                    b_i = mean_dist_to_c
+
+        # 3. Výpočet s(i) = (b(i) - a(i)) / max(a(i), b(i))
+        max_ab = max(a_i, b_i)
+        if max_ab == 0:
+            sil_samples[i] = 0.0
+        else:
+            sil_samples[i] = (b_i - a_i) / max_ab
+
+    return sil_samples
 
 
 def silhouette_score(
@@ -115,7 +163,5 @@ def silhouette_score(
         Průměrné silhouetové skóre v rozsahu [-1, 1].
         Blíže k 1 → kvalitnější shlukování.
     """
-    raise NotImplementedError(
-        "Úkol: implementujte silhouette_score() — vraťte průměr "
-        "výstupu silhouette_samples(X, labels, distance)."
-    )
+    samples = silhouette_samples(x, labels, distance)
+    return float(np.mean(samples))

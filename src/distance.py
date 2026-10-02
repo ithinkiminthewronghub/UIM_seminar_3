@@ -93,38 +93,20 @@ class Distance(ABC):
 
 
 class EuclideanDistance(Distance):
-    """Euklidovská vzdálenost — délka přímé spojnice dvou bodů."""
+    """ Třída pro výpočet Euklidovské vzdálenosti mezi dvěma vektory.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
 
     @property
     def is_metric(self) -> bool:
-        """Euklidovská vzdálenost je pravá metrika."""
-        raise NotImplementedError(
-            "Úkol: implementujte EuclideanDistance.is_metric() — zkopírujte z Cvičení 01."
-        )
+        """Vrací True, protože Euklidovská vzdálenost splňuje definici metriky."""
+        return True
 
-    def calculate(self, point_a: np.ndarray, point_b: np.ndarray) -> float:
-        """Vypočítá euklidovskou vzdálenost mezi dvěma body.
-
-        Úkol:
-            Implementujte vzorec: ``sqrt(sum((a_i - b_i)^2))``.
-            Zkopírujte řešení z Cvičení 01.
-
-        Parameters
-        ----------
-        point_a:
-            První bod.
-        point_b:
-            Druhý bod.
-
-        Returns
-        -------
-        float
-            Euklidovská vzdálenost.
-        """
-        # assert: Ověřte, že oba vstupy jsou 1D vektory stejné délky
-        raise NotImplementedError(
-            "Úkol: implementujte EuclideanDistance.calculate() — zkopírujte z Cvičení 01."
-        )
+    def calculate(self, x: np.ndarray, y: np.ndarray) -> float:
+        """Spočte Euklidovskou vzdálenost mezi 1D vektory x a y."""
+        return float(np.sqrt(np.sum((x - y) ** 2)))
 
 
 class ManhattanDistance(Distance):

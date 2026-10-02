@@ -113,10 +113,14 @@ class RandomUniformInit(Initializer):
             Těžiště tvaru ``(k, n_příznaků)`` — hodnoty v rozsahu sloupců ``x``.
         """
         # assert: Ověřte, že x je 2D matice, k >= 2 a k nepřekračuje počet bodů
-        raise NotImplementedError(
-            "Úkol: implementujte RandomUniformInit.initialize() \
-            vygenerujte k těžišť náhodně z rovnoměrného rozdělení v rozsahu dat."
-        )
+        assert x.ndim == 2
+        assert k >= 2
+        assert k <= x.shape[0]
+
+        low = np.min(x, axis=0)
+        high = np.max(x, axis=0)
+
+        return self._rng.uniform(low, high, size=(k, x.shape[1]))
 
 class ForgyInit(Initializer):
     """Inicializace metodou Forgy — těžiště jsou náhodně vybrané existující body.
@@ -146,12 +150,12 @@ class ForgyInit(Initializer):
         np.ndarray
             Těžiště tvaru ``(k, n_příznaků)`` — podmnožina řádků ``x``.
         """
-        # assert: Ověřte, že x je 2D matice, k >= 2 a k nepřekračuje počet bodů
-        # (nelze vybrat více různých bodů než jich existuje)
-        raise NotImplementedError(
-            "Úkol: implementujte ForgyInit.initialize() — vyberte k různých "
-            "existujících bodů z x jako počáteční těžiště."
-        )
+        assert x.ndim == 2
+        assert k >= 2
+        assert k <= x.shape[0]
+
+        indices = self._rng.choice(x.shape[0], k, replace=False)
+        return x[indices]
 
 
 class KMeansPlusPlusInit(Initializer):
@@ -192,7 +196,30 @@ class KMeansPlusPlusInit(Initializer):
             Těžiště tvaru ``(k, n_příznaků)`` vybraná algoritmem k-means++.
         """
         # assert: Ověřte, že x je 2D matice, k >= 2 a k nepřekračuje počet bodů
-        raise NotImplementedError(
-            "Úkol: implementujte KMeansPlusPlusInit.initialize() — algoritmus k-means++. "
-            "Viz docstring pro popis kroků algoritmu."
-        )
+        assert x.ndim == 2
+        assert k >= 2
+        assert k <= x.shape[0]
+
+        n_samples, n_features = x.shape
+        centroids = np.zeros((k, n_features))
+
+        first_index = self._rng.choice(n_samples)
+        centroids[0] = x[first_index]
+
+        for i in range(1, k):
+            distances = np.linalg.norm(x[:, np.newaxis, :] - centroids[:i], axis=2)
+            min_distances = np.min(distances, axis=1)
+
+            sq_distance = np.square(min_distances)
+            sum_sq_distance = np.sum(sq_distance)
+
+            if sum_sq_distance > 0:
+                probabilities = sq_distance / sum_sq_distance
+            else:
+                probabilities = np.ones(n_samples)/n_samples
+
+            next_index = self._rng.choice(n_samples, p=probabilities)
+            centroids[i] = x[next_index]
+
+        return centroids
+

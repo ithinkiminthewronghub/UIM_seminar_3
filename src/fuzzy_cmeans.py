@@ -110,10 +110,27 @@ class FuzzyCMeans(IterativeClustering):
             Matice členství tvaru ``(n_bodů, k)``, každý řádek sumuje na 1.
         """
         # assert: Ověřte, že x a centroids jsou 2D matice se stejným počtem příznaků
-        raise NotImplementedError(
-            "Úkol: implementujte FuzzyCMeans._update_assignment() — matici "
-            "členství FCM. Viz docstring pro vzorec a ošetření dělení nulou."
-        )
+        assert x.ndim == 2
+        assert centroids.ndim == 2
+        assert x.shape[1] == centroids.shape[1]
+
+        n_samples = x.shape[0]
+        distances = self._distances_to_centroids(x, centroids)
+        matrix_u = np.zeros((n_samples, self.k))
+        exponent = 2/(self.q - 1)
+
+        for i in range(n_samples):
+            # Ošetření případu, kdy bod leží přesně na těžišti (vzdálenost == 0)
+            zero_dist_indices = np.where(distances[i] == 0)[0]
+            if len(zero_dist_indices) > 0:
+                matrix_u[i, zero_dist_indices] = 1.0 / len(zero_dist_indices)
+            else:
+                for c in range(self.k):
+                    ratio = distances[i, c] / distances[i]
+                    matrix_u[i, c] = 1.0 / np.sum(ratio ** exponent)
+
+        return matrix_u
+
 
     def _update_centroids(
         self, x: np.ndarray, assignment: np.ndarray
@@ -145,11 +162,28 @@ class FuzzyCMeans(IterativeClustering):
         np.ndarray
             Nová těžiště tvaru ``(k, n_příznaků)``.
         """
-        # assert: Ověřte, že assignment (matice členství U) je 2D pole tvaru (n_bodů, k)
-        raise NotImplementedError(
-            "Úkol: implementujte FuzzyCMeans._update_centroids() — vážený průměr "
-            "bodů s vahami z matice členství umocněné na self.q."
-        )
+        assert assignment.ndim == 2
+        assert assignment.shape == (x.shape[0], self.k)
+
+        n_features = x.shape[1]
+        new_centroids = np.zeros((self.k, n_features), dtype=np.float64)
+
+        # Váhy U_{ic}^q pro všechny body a shluky
+        u_q = assignment ** self.q
+
+        for c in range(self.k):
+            weights = u_q[:, c]
+            sum_weights = np.sum(weights)
+
+            if sum_weights > 0:
+                new_centroids[c] = np.sum(x * weights[:, np.newaxis], axis=0) / sum_weights
+            else:
+                assert self.centroids_ is not None
+                new_centroids[c] = self.centroids_[c]
+
+        return new_centroids
+
+
 
     def predict(self) -> np.ndarray:
         """Převede měkkou matici členství na tvrdé popisky shluků (argmax).
@@ -172,7 +206,8 @@ class FuzzyCMeans(IterativeClustering):
             Pokud ``fit`` nebyl dosud volán.
         """
         # assert: Ověřte, že fit() byl zavolán a self.assignment_ je 2D matice členství
-        raise NotImplementedError(
-            "Úkol: implementujte FuzzyCMeans.predict() — vraťte argmax "
-            "matice členství self.assignment_ podél osy shluků (axis=1)."
-        )
+        if self.assignment_ is None:
+            raise RuntimeError("Metoda fit() musí být zavolána před voláním predict().")
+        assert self.assignment_.ndim == 2
+        return np.argmax(self.assignment_, axis=1)
+

@@ -109,10 +109,20 @@ class IterativeClustering(ABC):
         """
         # assert: Ověřte, že x a centroids jsou 2D matice se stejným počtem příznaků
         # a centroids má self.k řádků
-        raise NotImplementedError(
-            "Úkol: implementujte _distances_to_centroids() — vytvořte matici "
-            "vzdáleností tvaru (n_bodů, k) voláním self.distance.calculate."
-        )
+
+        assert x.ndim == 2
+        assert centroids.ndim == 2
+        assert centroids.shape[0] == self.k
+
+        n_points = x.shape[0]
+        distances = np.zeros((n_points, self.k))
+        for i in range(n_points):
+            for j in range(self.k):
+                distances[i, j] = self.distance.calculate(x[i], centroids[j])
+
+        return distances
+
+
 
     def _has_converged(
         self,
@@ -146,10 +156,9 @@ class IterativeClustering(ABC):
             ``True`` pokud algoritmus konvergoval, jinak ``False``.
         """
         # assert: Ověřte, že obě matice těžišť mají stejný tvar
-        raise NotImplementedError(
-            "Úkol: implementujte _has_converged() — porovnejte posun těžišť "
-            "s prahem self._EPSILON pomocí np.linalg.norm."
-        )
+        assert old_centroids.shape == new_centroids.shape
+
+        return True if np.linalg.norm(old_centroids - new_centroids) <= self._EPSILON else False
 
     def fit(self, x: np.ndarray) -> IterativeClustering:
         """Natrénuje shlukování na datech iterativní optimalizací.
@@ -199,10 +208,21 @@ class IterativeClustering(ABC):
             Instance ``self`` po natrénování (pro řetězení metod).
         """
         # assert: Ověřte, že x je 2D matice a obsahuje alespoň k bodů
-        raise NotImplementedError(
-            "Úkol: implementujte fit() — iterační smyčku inicializace → přiřazení "
-            "→ přepočet těžišť → konvergence. Viz docstring pro pořadí kroků."
-        )
+        assert x.ndim == 2
+        assert x.shape[0] >= self.k
+
+        self.centroids_ = self.initializer.initialize(x, self.k)
+
+        for _ in range(self.max_iter):
+            assignment = self._update_assignment(x, self.centroids_)
+            old_centroids = self.centroids_.copy()
+            new_centroids = self._update_centroids(x, assignment)
+            self.assignment_ = assignment
+            self.centroids_ = new_centroids
+            if self._has_converged(old_centroids, new_centroids):
+                break
+
+        return self
 
     @abstractmethod
     def _update_assignment(
